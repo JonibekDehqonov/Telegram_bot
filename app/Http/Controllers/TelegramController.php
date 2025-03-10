@@ -2,67 +2,53 @@
 
 namespace App\Http\Controllers;
 
-
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log as FacadesLog;
-use Telegram\Bot\Api;
 use Telegram\Bot\Laravel\Facades\Telegram;
+use Telegram\Bot\Api;
 
 class TelegramController extends Controller
 {
-    private $adminId = '2051239590';
-    public function handle(Request $request){
-        $update = Telegram::getWebhookUpdate();
-        $chatId=$request['message']['chat']['id'];
-        $user=$request['message']['chat']['first_name'];
-        // $text=$request['message']['text'];
+    public function handle()
+    {
         $update = Telegram::commandsHandler(true);
         $message = $update->getMessage();
         
-        if ($message=='/start' ){
+        if ($message) {
+            $chatId = $message->getChat()->getId();
+            $text = $message->getText();
 
-            Telegram::sendMessage([
-                'chat_id' => $chatId,
-                'text' =>'Assalom '.$user.' xush kelibsiz ',
-            ]);
-        }
-        if ($message=='Salom'){
-            Telegram::sendMessage([
-                'chat_id' => '2051239590',
-                'text' =>'Salom nima yordam beraolaman',
-            ]); 
-        }
+            if ($text === "/start") {
+                Telegram::sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => "Привет! Отправь команду /bus чтобы узнать местоположение автобусов.",
+                ]);
+            }
 
-        if ($message && $message->has('location')) {
-            $location = $message->get('location');
-            $lat = $location['latitude'];
-            $lon = $location['longitude'];
-
-           $mapUrl = "https://yandex.ru/maps/?ll={$lon},{$lat}&z=15";
-            Telegram::sendMessage([
-                'chat_id' => $message->getChat()->getId(),
-                'text' => "Sizning joylashuvingiz: $mapUrl",
-            ]);
-            Telegram::sendMessage([
-                'chat_id' => $this->adminId,
-                'text' => "Foydalanuvchi " . $message->getChat()->getId() . " joylashuvi: $mapUrl",
-            ]);
-        } else {
-            Telegram::sendMessage([
-                'chat_id' => $message->getChat()->getId(),
-                'text' => "Iltimos, o'z lokatsiyangizni yuboring.",
-                'reply_markup' => json_encode([
-                    'keyboard' => [[['text' => '📍 Lokatsiyani yuborish', 'request_location' => true]]],
-                    'resize_keyboard' => true,
-                    'one_time_keyboard' => true,
-                ]),
-            ]);
+            if ($text === "/bus") {
+                return $this->sendBusLocation($chatId);
+            }
         }
 
-        
-
-        // FacadesLog::info('update', [$update]);
+        return response()->json(['status' => 'ok']);
     }
 
-    
+    private function sendBusLocation($chatId)
+    {
+        // Здесь можно получить данные из API автобусов или базы данных
+        $latitude = 40.712776; // пример координаты
+        $longitude = -74.005974;
+        $address = "New York, Times Square"; // Заглушка
+
+        // Отправляем сообщение с картой
+        Telegram::sendLocation([
+            'chat_id' => $chatId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+        ]);
+
+        Telegram::sendMessage([
+            'chat_id' => $chatId,
+            'text' => "Автобус находится здесь: $address",
+        ]);
+    }
 }
